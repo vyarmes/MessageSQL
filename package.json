@@ -1,0 +1,29 @@
+{
+  "name": "messagesql",
+  "version": "1.0.0",
+  "description": "",
+  "homepage": "https://github.com/vyarmes/MessageSQL#readme",
+  "bugs": {
+    "url": "https://github.com/vyarmes/MessageSQL/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vyarmes/MessageSQL.git"
+  },
+  "license": "ISC",
+  "author": "vyarmes",
+  "type": "commonjs",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "dependencies": {
+    "socket.io": "^4.8.3",
+    "sqlite": "^5.1.1",
+    "sqlite3": "^6.0.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  }
+}
