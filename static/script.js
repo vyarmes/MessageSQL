@@ -1,6 +1,6 @@
 const socket = io();
 
-const message = document.getElementById('message');
+const messages = document.getElementById('messages');
 const input = document.getElementById('input');
 const form = document.getElementById('form');
 form.addEventListener('submit', function(e){
@@ -13,7 +13,11 @@ form.addEventListener('submit', function(e){
 socket.on('load_messages', function(msgs){
     msgs.forEach(function(msg){
         var item = document.createElement('li');
-        item.textContent = msg;
+        if (typeof msg === 'object' && msg.content) {
+            item.textContent = msg.login + ': ' + msg.content;
+        } else {
+            item.textContent = msg;
+        }
         messages.appendChild(item);
     });
 });
