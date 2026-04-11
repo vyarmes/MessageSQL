@@ -7,12 +7,22 @@ const db = require('./database');
 const indexHtmlFile = fs.readFileSync(path.join(__dirname,'static','index.html'),'utf-8');
 const scriptFile = fs.readFileSync(path.join(__dirname,'static','script.js'),'utf-8');
 const styleFile = fs.readFileSync(path.join(__dirname,'static','style.css'),'utf-8');
+const registerHtmlFile = fs.readFileSync(path.join(__dirname,'static','register.html'),'utf-8');
+const loginHtmlFile = fs.readFileSync(path.join(__dirname,'static','login.html'),'utf-8');
+const registerCssFile = fs.readFileSync(path.join(__dirname,'static','register.css'),'utf-8');
+const loginCssFile = fs.readFileSync(path.join(__dirname,'static','login.css'),'utf-8');   
+const authJsFile = fs.readFileSync(path.join(__dirname,'static','auth.js'),'utf-8');
 
 const server = http.createServer((req,res)=>{
     switch(req.url){
         case '/':return res.end(indexHtmlFile);
         case '/script.js':return res.end(scriptFile);
         case '/style.css':return res.end(styleFile);
+        case '/register.html':return res.end(registerHtmlFile);
+        case '/login.html':return res.end(loginHtmlFile);
+        case '/register.css':return res.end(registerCssFile);
+        case '/login.css':return res.end(loginCssFile);
+        case '/auth.js':return res.end(authJsFile);
     }
     res.statusCode = 404;
     return res.end('Error 404: Not Found');
@@ -45,3 +55,26 @@ io.on('connection', async (socket) =>
         io.emit('message', new Date().toLocaleTimeString() + ' ' + userNickname + ': ' + message);
     });
 });
+function registerUser(req, res) {
+    let data = '';
+    req.on('data', function(chunk) {
+        data += chunk;
+    });
+    req.on('end', function() {
+        console.log(data);
+        return res.end('ok');
+        try {
+            const user = JSON.parse(data);
+            if (!user.login || !user.password) {
+                return res.end('Login and password are required');
+            }
+            if (await, db.addUser(user)){
+                res.end('User registered successfully');
+            }
+        }
+        catch(e){
+            res.writeHead(500);
+            return res.end('Error registering user');
+        }
+    });
+}

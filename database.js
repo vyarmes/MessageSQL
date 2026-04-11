@@ -1,4 +1,5 @@
 const fs = require('fs');
+const { get } = require('http');
 
 const dbFile = './chat.db';
 const excist = fs.existsSync(dbFile);
@@ -65,5 +66,36 @@ module.exports = {
         catch(dbError){
             console.error('Database error:', dbError);
         }
+    },
+    addMessage: async (msg, userId) => {
+        await db.run(
+            `INSERT INTO message (user_id, content) VALUES (?, ?)`,
+            [userId, msg]
+        );
+    },
+    addUser: async (user) => {
+        const salt = crypto.randomBytes(16).toString('hex');
+        const password = crypto.pbkdf2Sync(user.password, salt, 1000, 64, 'sha512').toString('hex');
+        await db.run(
+            `INSERT INTO user (login, password, salt) VALUES (?, ?, ?)`,
+            [user.login, password, salt]
+        );
+    },
+    getUser: async (user) => {
+        const candidate = await db.get(
+            `SELECT * FROM user WHERE login = ?`,
+            [user.login]
+        );
+        if (!candidate.length){
+            throw new Error('User not found');
+        };
+        const {userId, login, password, salt} = candidate[0];
+        const hash = crypto.pbkdf2Sync(user.password, salt, 1000, 64, 'sha512').toString('hex');
+        if (hash !== password){
+            throw new Error('Invalid password');
+        };
+        return userId +"."+ login +"."+ crypto.randomBytes(16).toString('hex');
     }
+
 };
+
