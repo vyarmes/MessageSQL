@@ -1,4 +1,5 @@
 const fs = require('fs');
+const crypto = require('crypto');
 const { get } = require('http');
 
 const dbFile = './chat.db';
@@ -19,28 +20,40 @@ dbWrapper.open({
             `CREATE TABLE user(
             user_id INTEGER PRIMARY KEY AUTOINCREMENT,
             login TEXT,
-            password TEXT
+            password TEXT,
+            salt TEXT
             );`
         );
-        await db.run(
-            `INSERT INTO user (login, password) VALUES ('1', '123'), ('2', '456'), ('admin', '789');`
-        );
-        await db.run(
-            `CREATE TABLE message(
-            message_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER,
-            content TEXT,
-            author INTEGER,
-            FOREIGN KEY (user_id) REFERENCES user(user_id)
-            );`
-        );
-    }else{
-            console.log(await db.all('SELECT * FROM user'));
+        const users = [
+            {login: '1', password: '123'},
+            {login: '2', password: '456'},
+            {login: 'admin', password: '789'}
+        ];
+        for (const user of users) {
+            const salt = crypto.randomBytes(16).toString('hex');
+            const hashedPassword = crypto.pbkdf2Sync(user.password, salt, 1000, 64, 'sha512').toString('hex');
+            await db.run(
+                `INSERT INTO user (login, password, salt) VALUES (?, ?, ?)`,
+                [user.login, hashedPassword, salt]
+            );
         };
+    }else{
+        try {
+            await db.run('ALTER TABLE user ADD COLUMN salt TEXT');
+        } catch (e) {
+        }
+        console.log(await db.all('SELECT * FROM user'));
+    };
     }
 catch(dbError){
     console.error('Database error:', dbError);
 }
+})
+.then(() => {
+    const server = require('./server');
+    server.listen(3000, () => {
+        console.log('Server running on http://localhost:3000');
+    });
 });
 module.exports = {
     getMessages: async () => {
@@ -56,23 +69,24 @@ module.exports = {
             return [];
         }
     },
-    addMessage: async (msg, userId) => {
-        try{
-            return await db.run(
-                `INSERT INTO message (user_id, content) VALUES (?, ?)`,
-                [userId, msg]
-            );
-        }
-        catch(dbError){
-            console.error('Database error:', dbError);
-        }
-    },
-    addMessage: async (msg, userId) => {
-        await db.run(
+addMessage: async (msg, userId) => {
+    try{
+        return await db.run(
             `INSERT INTO message (user_id, content) VALUES (?, ?)`,
             [userId, msg]
         );
-    },
+    }
+    catch(dbError){
+        console.error('Database error:', dbError);
+    }
+},
+isUserExist: async (login) => {
+    const candidate = await db.get(
+        `SELECT * FROM user WHERE login = ?`,
+        [login]
+    );
+    return !!candidate;
+},
     addUser: async (user) => {
         const salt = crypto.randomBytes(16).toString('hex');
         const password = crypto.pbkdf2Sync(user.password, salt, 1000, 64, 'sha512').toString('hex');
@@ -80,21 +94,27 @@ module.exports = {
             `INSERT INTO user (login, password, salt) VALUES (?, ?, ?)`,
             [user.login, password, salt]
         );
+        return true;
     },
     getUser: async (user) => {
         const candidate = await db.get(
             `SELECT * FROM user WHERE login = ?`,
             [user.login]
         );
-        if (!candidate.length){
+        if (!candidate){
             throw new Error('User not found');
-        };
-        const {userId, login, password, salt} = candidate[0];
-        const hash = crypto.pbkdf2Sync(user.password, salt, 1000, 64, 'sha512').toString('hex');
-        if (hash !== password){
-            throw new Error('Invalid password');
-        };
-        return userId +"."+ login +"."+ crypto.randomBytes(16).toString('hex');
+        }
+        if (candidate.salt) {
+            const hash = crypto.pbkdf2Sync(user.password, candidate.salt, 1000, 64, 'sha512').toString('hex');
+            if (hash !== candidate.password){
+                throw new Error('Invalid password');
+            }
+        } else {
+            if (user.password !== candidate.password){
+                throw new Error('Invalid password');
+            }
+        }
+        return candidate.user_id + "." + candidate.login;
     }
 
 };

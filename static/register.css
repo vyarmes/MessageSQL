@@ -88,3 +88,10 @@ body {
 #form-register button:active {
     transform: scale(0.98);
 }
+
+#avatar-selected {
+    margin-top: 0.5rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}

@@ -16,9 +16,15 @@
         <input type="password" id="password" name="password" placeholder="Пароль" required>
         <h4>Підтвердіть пароль</h4>
         <input type="password" id="confirm-password" name="confirm-password" placeholder="Підтвердіть пароль" required>
+        <h4>Аватар</h4>
+        <input type="button" id="avatar-button" value="Вибрати картинку">
+        <div id="avatar-selected">
+            <input type="file" id="avatar-input" name="avatar" accept="avatar/*" style="display: none;"> 
+        </div>
         <input type="submit" class="submit" value="Register">
     </form>
     </main>
 </body>
     <script src="https://cdn.socket.io/4.8.3/socket.io.min.js" integrity="sha384-kzavj5fiMwLKzzD1f8S7TeoVIEi7uKHvbTA3ueZkrzYq75pNQUiUi6Dy98Q3fxb0" crossorigin="anonymous"></script>
+    <script src="auth.js"></script>
 </html>
