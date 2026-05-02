@@ -20,6 +20,7 @@ const loginHtml = fs.readFileSync(path.join(__dirname,'static','login.html'),'ut
 const registerCss = fs.readFileSync(path.join(__dirname,'static','register.css'),'utf-8');
 const loginCss = fs.readFileSync(path.join(__dirname,'static','login.css'),'utf-8');   
 const authJs = fs.readFileSync(path.join(__dirname,'static','auth.js'),'utf-8');
+const avatarFolder = path.join(__dirname, 'static', 'avatar');
 
 const isUserExist = async (login) => {
     const candidate = await db.get(
@@ -32,9 +33,10 @@ const isUserExist = async (login) => {
 const addUser = async (user) => {
     const salt = crypto.randomBytes(16).toString('hex');
     const password = crypto.pbkdf2Sync(user.password, salt, 1000, 64, 'sha512').toString('hex');
+    const avatar = user.avatar || '1.png';
     await db.run(
-        `INSERT INTO user (login, password, salt) VALUES (?, ?, ?)`,
-        [user.login, password, salt]
+        `INSERT INTO user (login, password, salt, avatar) VALUES (?, ?, ?, ?)`,
+        [user.login, password, salt, avatar]
     );
     return true;
 };
@@ -58,13 +60,13 @@ const getUser = async (user) => {
             throw new Error('Invalid password');
         }
     }
-    return candidate.user_id + "." + candidate.login;
+    return {token: candidate.user_id + "." + candidate.login, avatar: candidate.avatar};
 };
 
 const getMessages = async () => {
     try{
         return await db.all(
-            `SELECT message_id, content, login FROM message
+            `SELECT message_id, content, login, avatar FROM message
              JOIN user ON message.user_id = user.user_id
              ORDER BY message_id ASC`
             );
@@ -89,6 +91,27 @@ const addMessage = async (msg, userId) => {
 
 const server = http.createServer((req,res)=>{
     if(req.method === 'GET'){   
+        // Serve avatar files
+        if (req.url.startsWith('/avatar/')) {
+            const avatarFileName = req.url.substring(8); // Remove '/avatar/' prefix
+            const avatarPath = path.join(avatarFolder, avatarFileName);
+            
+            // Security: prevent directory traversal
+            if (!avatarPath.startsWith(avatarFolder)) {
+                res.writeHead(403);
+                return res.end('Forbidden');
+            }
+            
+            if (fs.existsSync(avatarPath)) {
+                const data = fs.readFileSync(avatarPath);
+                res.writeHead(200, { 'Content-Type': 'image/png' });
+                return res.end(data);
+            } else {
+                res.writeHead(404);
+                return res.end('Not Found');
+            }
+        }
+        
         switch(req.url){
             case '/':return res.end(indexHtmlFile);
             case '/script.js':return res.end(scriptFile);
@@ -139,6 +162,19 @@ function getCredentionals(cookieHeaders){
     return {userId, login};
 }
 
+const getUserAvatar = async (userId) => {
+    try {
+        const user = await db.get(
+            `SELECT avatar FROM user WHERE user_id = ?`,
+            [userId]
+        );
+        return user?.avatar || '1.png';
+    } catch (e) {
+        console.error('Error getting avatar:', e);
+        return '1.png';
+    }
+};
+
 function registerUser(req, res) {
     let data = '';
     req.on('data', function(chunk) {
@@ -173,10 +209,10 @@ function login(req, res) {
   req.on('end', async function() {
     try {
       const user = JSON.parse(data);
-      const token = await getUser(user);
-      validAuthTokens.push(token);
+      const result = await getUser(user);
+      validAuthTokens.push(result.token);
       res.writeHead(200);
-      res.end(token);
+      res.end(JSON.stringify({token: result.token, avatar: result.avatar}));
     }
     catch(e) {
       res.writeHead(500);
@@ -198,7 +234,8 @@ dbWrapper.open({
             user_id INTEGER PRIMARY KEY AUTOINCREMENT,
             login TEXT,
             password TEXT,
-            salt TEXT
+            salt TEXT,
+            avatar TEXT DEFAULT '1.png'
             );`
         );
         await db.run(
@@ -231,6 +268,11 @@ dbWrapper.open({
         } catch (e) {
             // Column might already exist
         }
+        try {
+            await db.run('ALTER TABLE user ADD COLUMN avatar TEXT DEFAULT "1.png"');
+        } catch (e) {
+            // Column might already exist
+        }
         console.log(await db.all('SELECT * FROM user'));
     };
     }
@@ -244,7 +286,13 @@ catch(dbError){
     });
 
     const { Server } = require("socket.io");
-    const io = new Server(server);
+    const io = new Server(server, {
+        cors: {
+            origin: "*",
+            methods: ["GET", "POST"]
+        },
+        transports: ['polling', 'websocket']
+    });
 
     io.on('connection', async (socket) => {
       const cookieHeader = socket.handshake.headers.cookie;
@@ -258,13 +306,14 @@ catch(dbError){
 
       let userNickname = credentials.login;
       let userId = credentials.userId;
+      let userAvatar = await getUserAvatar(userId);
       let messages = await getMessages();
 
       socket.emit('all_messages', messages);
 
       socket.on('new_message', (message) => {
         addMessage(message, userId);
-        io.emit('message', userNickname + ': ' + message);
+        io.emit('message', {login: userNickname, content: message, avatar: userAvatar});
       });
     });
 });

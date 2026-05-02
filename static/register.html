@@ -17,14 +17,40 @@
         <h4>Підтвердіть пароль</h4>
         <input type="password" id="confirm-password" name="confirm-password" placeholder="Підтвердіть пароль" required>
         <h4>Аватар</h4>
-        <input type="button" id="avatar-button" value="Вибрати картинку">
-        <div id="avatar-selected">
-            <input type="file" id="avatar-input" name="avatar" accept="avatar/*" style="display: none;"> 
+        <button type="button" id="avatar-button" class="avatar-btn">Вибрати аватар</button>
+        <div id="avatar-display" class="avatar-preview" style="display: none;">
+            <img id="avatar-img" src="" alt="Вибраний аватар">
+            <input type="hidden" id="avatar-selected" name="avatar">
         </div>
         <input type="submit" class="submit" value="Register">
     </form>
+
+    <!-- Modal для вибору аватара -->
+    <div id="avatar-modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Виберіть аватар</h2>
+            <div class="avatar-grid">
+                <div class="avatar-option" data-avatar="1.png">
+                    <img src="avatar/1.png" alt="Avatar 1">
+                </div>
+                <div class="avatar-option" data-avatar="2.png">
+                    <img src="avatar/2.png" alt="Avatar 2">
+                </div>
+                <div class="avatar-option" data-avatar="3.png">
+                    <img src="avatar/3.png" alt="Avatar 3">
+                </div>
+                <div class="avatar-option" data-avatar="4.png">
+                    <img src="avatar/4.png" alt="Avatar 4">
+                </div>
+                <div class="avatar-option" data-avatar="5.png">
+                    <img src="avatar/5.png" alt="Avatar 5">
+                </div>
+            </div>
+        </div>
+    </div>
     </main>
 </body>
     <script src="https://cdn.socket.io/4.8.3/socket.io.min.js" integrity="sha384-kzavj5fiMwLKzzD1f8S7TeoVIEi7uKHvbTA3ueZkrzYq75pNQUiUi6Dy98Q3fxb0" crossorigin="anonymous"></script>
     <script src="auth.js"></script>
-</html>
+</html> 

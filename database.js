@@ -21,7 +21,8 @@ dbWrapper.open({
             user_id INTEGER PRIMARY KEY AUTOINCREMENT,
             login TEXT,
             password TEXT,
-            salt TEXT
+            salt TEXT,
+            avatar TEXT DEFAULT '1.png'
             );`
         );
         const users = [
@@ -39,7 +40,7 @@ dbWrapper.open({
         };
     }else{
         try {
-            await db.run('ALTER TABLE user ADD COLUMN salt TEXT');
+            await db.run('ALTER TABLE user ADD COLUMN avatar TEXT DEFAULT "1.png"');
         } catch (e) {
         }
         console.log(await db.all('SELECT * FROM user'));
@@ -59,7 +60,7 @@ module.exports = {
     getMessages: async () => {
         try{
             return await db.all(
-                `SELECT message_id, content, login FROM message
+                `SELECT message_id, content, login, avatar FROM message
                  JOIN user ON message.user_id = user.user_id
                  ORDER BY message_id ASC`
                 );
@@ -87,12 +88,13 @@ isUserExist: async (login) => {
     );
     return !!candidate;
 },
-    addUser: async (user) => {
+addUser: async (user) => {
         const salt = crypto.randomBytes(16).toString('hex');
         const password = crypto.pbkdf2Sync(user.password, salt, 1000, 64, 'sha512').toString('hex');
+        const avatar = user.avatar || '1.png';
         await db.run(
-            `INSERT INTO user (login, password, salt) VALUES (?, ?, ?)`,
-            [user.login, password, salt]
+            `INSERT INTO user (login, password, salt, avatar) VALUES (?, ?, ?, ?)`,
+            [user.login, password, salt, avatar]
         );
         return true;
     },
